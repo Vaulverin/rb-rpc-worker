@@ -1,27 +1,39 @@
 package main
 
 import (
-	//"rabbit-worker/rpc_server"
+	"rabbit-worker/rpc_server"
 	"os"
 	"log"
 	"github.com/BurntSushi/toml"
 )
 
-type Config struct {
-	Rabbit RabbitConfig
+var (
+	cfgFile  = "Config.ini"
+	Config  MainConfig
+)
+
+type MainConfig struct {
+	Token string
+	EndPoint EndPointConfig
+	Rabbit rpc_server.RabbitConfig
+}
+
+type EndPointConfig struct {
+	PAPI string
 }
 
 func main() {
-	_, err := os.Stat(configfile)
+	_, err := os.Stat(cfgFile)
 	if err != nil {
-		log.Fatal("Config file is missing: ", configfile)
+		log.Fatal("Config file is missing: ", cfgFile)
 	}
 
-	var config Config
-	if _, err := toml.DecodeFile(configfile, &config); err != nil {
+
+	if _, err := toml.DecodeFile(cfgFile, &Config); err != nil {
 		log.Fatal(err)
 	}
-	//rpcServer := new(rpc_server.RPCServer)
-	//rpcServer.Init()
 
+	rpcServer := new(rpc_server.RPCServer)
+	rpcServer.Init(Config.Rabbit)
+	rpcServer.Start(ProcedureCallManager{})
 }

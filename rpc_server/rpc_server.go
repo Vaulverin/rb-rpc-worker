@@ -3,9 +3,7 @@ package rpc_server
 import (
 	"github.com/streadway/amqp"
 	"fmt"
-	"time"
 	"log"
-	"go/ast"
 )
 
 type RabbitConfig struct {
@@ -16,6 +14,10 @@ type RabbitConfig struct {
 	QueueName string
 }
 
+type IProcedureCallManager interface {
+	GetResponse(requestBody []byte) (response []byte, err error)
+}
+
 type RPCServer struct {
 	config RabbitConfig
 }
@@ -24,7 +26,7 @@ func (srv *RPCServer) Init (config RabbitConfig) {
 	srv.config = config
 }
 
-func (srv *RPCServer) Start () {
+func (srv *RPCServer) Start (pcManager IProcedureCallManager) {
 	conn, err := amqp.Dial(
 		fmt.Sprintf("amqp://%s:%s@%s:%s/",
 			srv.config.User,
@@ -69,9 +71,10 @@ func (srv *RPCServer) Start () {
 	go func() {
 		for d := range msgs {
 			go func(d amqp.Delivery) {
-				//log.Printf(" [.] %s", string(d.Body))
-				response := "OK"
-				time.Sleep(5 * time.Second)
+				response, err := pcManager.GetResponse(d.Body)
+				if err != nill {
+					failOnError(err, "Failed to get response")
+				}
 
 				err = ch.Publish(
 					"",        // exchange
@@ -81,7 +84,7 @@ func (srv *RPCServer) Start () {
 					amqp.Publishing{
 						ContentType:   "application/json",
 						CorrelationId: d.CorrelationId,
-						Body:          []byte(response),
+						Body:          response,
 					})
 				failOnError(err, "Failed to publish a message")
 
